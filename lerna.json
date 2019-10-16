@@ -1,0 +1,22 @@
+{
+  "packages": [
+    "packages/*"
+  ],
+  "version": "2.0.4",
+  "npmClient": "yarn",
+  "useWorkspaces": true,
+  "command": {
+    "bootstrap": {
+      "npmClientArgs": [
+        "--ignore-engines"
+      ]
+    },
+    "version": {
+      "message": "solution: publish %s",
+      "allowBranch": [
+        "master",
+        "release/*"
+      ]
+    }
+  }
+}

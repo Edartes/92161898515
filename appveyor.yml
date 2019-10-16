@@ -1,0 +1,42 @@
+os: Visual Studio 2015
+environment:
+  GCP_PASSWD:
+    secure: /kPjA5Ff2c6ZDhU7y6TiUWiR4Jr4uXyLKWan35EXXTI=
+install:
+  - set PATH=C:\msys64\mingw64\bin;C:\msys64\usr\bin\;%PATH%
+  # Install janus.
+  - curl -sL https://raw.githubusercontent.com/ETCDEVTeam/janus/master/get-windows.sh | bash
+  - set PATH=./janusbin;%PATH%
+  # Set up version from git tags.
+  - gitversion.exe > packages/desktop/gitversion.json
+  - ps: $env:VERSION_BASE = "v$(gitversion.exe /showvariable Major).$(gitversion.exe /showvariable Minor).x"
+  # expected by Electron Builder config
+  - ps: $env:APP_VERSION_GIT_TAG="$(gitversion.exe /showvariable FullSemVer)-$(gitversion.exe /showvariable ShortSha)"
+  - echo %VERSION_BASE% %APP_VERSION_GIT_TAG%
+  # Set up build dependencies.
+  - ps: Install-Product node 8 x64
+  - set CI=true
+  - npm install -g npm windows-build-tools@4.0.0 node-gyp lerna yarn@1.13.0
+  - ps: $env:Path += ";$env:USERPROFILE\.windows-build-tools\python27"
+  - set PATH=%APPDATA%\npm;%PATH%
+  - npm config set python %USERPROFILE%\.windows-build-tools\python27\python.exe
+  - lerna bootstrap
+
+build: off
+version: '{build}'
+test_script:
+  # CSC...=false env var disables app signing for osx, can't hurt to have it here too.
+  # But probably useless, since the dist script build for _current_ operating system.
+  - yarn build:dist
+#artifacts:
+#  - path: './dist/*.exe'
+#    name: emerald-wallet
+deploy_script:
+  - openssl version
+  - openssl aes-256-cbc -d -in gcloud-appveyor.json.enc -k %GCP_PASSWD% -out gcloud-appveyor.json -md sha256
+  - ps: >-
+      If (($env:APPVEYOR_REPO_BRANCH -eq 'master') -or ($env:APPVEYOR_REPO_TAG -eq 'true')) {
+          echo "Deploy to http://builds.etcdevteam.com/emerald-wallet/$env:VERSION_BASE/"
+          janus.exe deploy -to="builds.etcdevteam.com/emerald-wallet/$env:VERSION_BASE/" -files="./packages/desktop/dist/*.exe" -key="./gcloud-appveyor.json"
+      }
+  - rm gcloud-appveyor.json
